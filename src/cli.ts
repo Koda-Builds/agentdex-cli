@@ -47,6 +47,7 @@ program
   .option('--model <model>', 'Model (e.g., claude-3.5-sonnet)')
   .option('--website <url>', 'Website URL')
   .option('--lightning <addr>', 'Lightning address')
+  .option('--owner-x <handle>', 'Owner X/Twitter handle (e.g., @username)')
   .option('--api-key <key>', 'Agentdex API key')
   .option('--relay <url>', 'Additional relay (repeatable)', (val: string, acc: string[]) => [...acc, val], [])
   .option('--json', 'Output JSON')
@@ -85,6 +86,7 @@ program
         model: options.model,
         website: options.website,
         lightning: options.lightning,
+        ownerX: options.ownerX,
         status: 'active',
       });
 

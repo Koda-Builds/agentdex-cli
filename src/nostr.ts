@@ -18,6 +18,7 @@ export interface AgentProfile {
   avatar?: string;
   lightning?: string;
   human?: string;
+  ownerX?: string;
   status?: string;
   messagingPolicy?: string;
   messagingMinTrust?: number;
@@ -77,6 +78,7 @@ export function createProfileEvent(sk: Uint8Array, profile: AgentProfile) {
   if (profile.avatar) tags.push(['avatar', profile.avatar]);
   if (profile.lightning) tags.push(['lightning', profile.lightning]);
   if (profile.human) tags.push(['human', profile.human]);
+  if (profile.ownerX) tags.push(['owner_x', profile.ownerX]);
   if (profile.status) tags.push(['status', profile.status || 'active']);
   if (profile.messagingPolicy) tags.push(['messaging_policy', profile.messagingPolicy]);
   if (profile.messagingMinTrust) tags.push(['messaging_min_trust', String(profile.messagingMinTrust)]);
