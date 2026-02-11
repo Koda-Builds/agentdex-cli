@@ -122,6 +122,25 @@ export async function publishToRelays(event: object, relays: string[] = DEFAULT_
 }
 
 /**
+ * Build and sign a kind 0 profile metadata event (for NIP-05 verification).
+ * After claiming a NIP-05 name, publish this to relays so Nostr clients
+ * (njump, Damus, Primal) can verify the identity.
+ */
+export function createKind0Event(sk: Uint8Array, profile: { name: string; about?: string; nip05?: string; picture?: string }) {
+  return finalizeEvent({
+    kind: 0,
+    created_at: Math.floor(Date.now() / 1000),
+    tags: [],
+    content: JSON.stringify({
+      name: profile.name,
+      ...(profile.about && { about: profile.about }),
+      ...(profile.nip05 && { nip05: profile.nip05 }),
+      ...(profile.picture && { picture: profile.picture }),
+    }),
+  }, sk);
+}
+
+/**
  * Create and sign a kind 1 note tagged #agentdex
  */
 export function createNote(sk: Uint8Array, content: string) {

@@ -7,7 +7,7 @@ import inquirer from 'inquirer';
 import qrcode from 'qrcode-terminal';
 import { readFileSync } from 'fs';
 import { AgentdexClient } from './client.js';
-import { parseSecretKey, getNpub, getPubkeyHex, createProfileEvent, publishToRelays, createNote } from './nostr.js';
+import { parseSecretKey, getNpub, getPubkeyHex, createProfileEvent, createKind0Event, publishToRelays, createNote } from './nostr.js';
 
 const program = new Command();
 
@@ -116,7 +116,12 @@ program
           console.log(chalk.gray('  Next: Claim a NIP-05 name to get verified (first 100 free, then 5000 sats).'));
         }
       } catch (err) {
-        spinner.fail(`Registration failed: ${(err as Error).message}`);
+        const apiErr = err as any;
+        if (apiErr.status === 503) {
+          spinner.fail('Registration is currently disabled.');
+        } else {
+          spinner.fail(`Registration failed: ${(err as Error).message}`);
+        }
         process.exit(1);
       }
     } catch (err) {
@@ -134,6 +139,8 @@ program
   .option('--key-file <path>', 'Path to JSON key file')
   .option('--nwc <uri>', 'Nostr Wallet Connect URI for auto-pay')
   .option('--api-key <key>', 'Agentdex API key')
+  .option('--skip-kind0', 'Skip publishing kind 0 profile to relays')
+  .option('--relay <url>', 'Additional relay', (val: string, acc: string[]) => [...acc, val], [])
   .option('--json', 'Output JSON')
   .action(async (name: string, options) => {
     try {
@@ -153,15 +160,31 @@ program
       // Free/successful claim
       if (claim.claimed) {
         spinner.succeed(`${chalk.hex('#D4A574')(`${claim.nip05}`)} is now active!`);
-        if (claim.next_steps) {
-          console.log('');
-          const ns = claim.next_steps as Record<string, { description?: string; relays?: string[] }>;
-          if (ns.publish_kind0) {
-            console.log(chalk.gray(`  Next: ${ns.publish_kind0.description}`));
-            if (ns.publish_kind0.relays) {
-              console.log(chalk.gray(`  Relays: ${ns.publish_kind0.relays.join(', ')}`));
-            }
+
+        // Auto-publish kind 0 to relays so Nostr clients verify the NIP-05
+        if (!options.skipKind0) {
+          const k0Spinner = ora('Publishing kind 0 profile to Nostr relays...').start();
+          try {
+            const kind0 = createKind0Event(sk, {
+              name: claim.agent?.name || name,
+              nip05: `${name}@agentdex.id`,
+            });
+            const relays = ['wss://nos.lol', 'wss://relay.damus.io', ...(options.relay || [])];
+            const published = await publishToRelays(kind0, relays);
+            k0Spinner.succeed(`Kind 0 published to ${published.join(', ')}`);
+            console.log(chalk.gray('  NIP-05 will appear on njump/Damus/Primal once relays propagate (~30s)'));
+          } catch {
+            k0Spinner.warn('Kind 0 publish failed. Publish manually:');
+            console.log(chalk.gray(`  kind 0 content: {"name":"...","nip05":"${name}@agentdex.id"}`));
           }
+        } else {
+          console.log('');
+          console.log(chalk.yellow('  ⚠ Skipped kind 0 publish. For NIP-05 to show on Nostr clients:'));
+          console.log(chalk.gray(`  Publish kind 0 with: "nip05": "${name}@agentdex.id"`));
+        }
+
+        if (options.json) {
+          console.log(JSON.stringify(claim, null, 2));
         }
         return;
       }
@@ -194,6 +217,19 @@ program
           const status = await client.claimStatus(claim.payment_hash!);
           if (status.paid) {
             pollSpinner.succeed(`${chalk.hex('#D4A574')(`${name}@agentdex.id`)} is now active!`);
+
+            // Auto-publish kind 0 after payment
+            if (!options.skipKind0) {
+              const k0Spinner = ora('Publishing kind 0 profile to Nostr relays...').start();
+              try {
+                const kind0 = createKind0Event(sk, { name, nip05: `${name}@agentdex.id` });
+                const relays = ['wss://nos.lol', 'wss://relay.damus.io', ...(options.relay || [])];
+                await publishToRelays(kind0, relays);
+                k0Spinner.succeed('Kind 0 published — NIP-05 active on all Nostr clients');
+              } catch {
+                k0Spinner.warn('Kind 0 publish failed — publish manually');
+              }
+            }
             return;
           }
         }
