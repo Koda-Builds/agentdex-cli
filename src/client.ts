@@ -90,15 +90,20 @@ export class AgentdexClient {
     return res.json();
   }
 
-  async register(event: object): Promise<{ agent: object; registered: boolean; tier: string }> {
+  async register(event: object): Promise<any> {
     const res = await this.fetch('/api/v1/agents/register', {
       method: 'POST',
       body: JSON.stringify({ event }),
     });
-    if (!res.ok) {
+    if (!res.ok && res.status !== 402) {
       const err = await res.json();
       throw new Error(err.error || 'Registration failed');
     }
+    return res.json();
+  }
+
+  async registerStatus(paymentHash: string): Promise<{ paid: boolean; agent?: object }> {
+    const res = await this.fetch(`/api/v1/agents/register/status?payment_hash=${encodeURIComponent(paymentHash)}`);
     return res.json();
   }
 

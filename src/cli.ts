@@ -8,13 +8,14 @@ import qrcode from 'qrcode-terminal';
 import { readFileSync } from 'fs';
 import { AgentdexClient } from './client.js';
 import { parseSecretKey, getNpub, getPubkeyHex, createProfileEvent, createKind0Event, publishToRelays, createNote } from './nostr.js';
+import { payInvoice } from './nwc.js';
 
 const program = new Command();
 
 program
   .name('agentdex')
   .description('CLI for the agentdex AI agent directory')
-  .version('0.1.0');
+  .version('0.2.0');
 
 /**
  * Resolve secret key from flags, env, or key file
@@ -48,6 +49,7 @@ program
   .option('--website <url>', 'Website URL')
   .option('--lightning <addr>', 'Lightning address')
   .option('--owner-x <handle>', 'Owner X/Twitter handle (e.g., @username)')
+  .option('--nwc <uri>', 'Nostr Wallet Connect URI for auto-pay')
   .option('--api-key <key>', 'Agentdex API key')
   .option('--relay <url>', 'Additional relay (repeatable)', (val: string, acc: string[]) => [...acc, val], [])
   .option('--json', 'Output JSON')
@@ -96,6 +98,70 @@ program
       try {
         const result = await client.register(event);
 
+        // Payment required (402)
+        if (result.status === 'awaiting_payment' && result.invoice) {
+          spinner.stop();
+          console.log('');
+          console.log(chalk.hex('#D4A574')(`  💰 Registration fee: ${result.amount_sats?.toLocaleString()} sats`));
+          console.log('');
+
+          const nwcUri = options.nwc || process.env.NWC_URL;
+
+          if (nwcUri) {
+            const paySpinner = ora('Paying invoice via NWC...').start();
+            try {
+              await payInvoice(nwcUri, result.invoice);
+              paySpinner.succeed('Invoice paid!');
+            } catch (payErr) {
+              paySpinner.fail(`NWC payment failed: ${(payErr as Error).message}`);
+              console.log('');
+              console.log(chalk.gray('  Pay manually:'));
+              qrcode.generate(result.invoice, { small: true }, (qr: string) => { console.log(qr); });
+              console.log(chalk.gray(`  bolt11: ${result.invoice}`));
+              console.log('');
+            }
+          } else {
+            qrcode.generate(result.invoice, { small: true }, (qr: string) => { console.log(qr); });
+            console.log(chalk.gray(`  bolt11: ${result.invoice}`));
+            console.log('');
+          }
+
+          // Poll for payment
+          const pollSpinner = ora('Waiting for payment...').start();
+          const startTime = Date.now();
+          const timeout = 15 * 60 * 1000;
+
+          while (Date.now() - startTime < timeout) {
+            await new Promise((r) => setTimeout(r, 3000));
+            const status = await client.registerStatus(result.payment_hash!);
+            if (status.paid) {
+              pollSpinner.succeed('Registered!');
+
+              spinner.text = 'Publishing to Nostr relays...';
+              const relays = ['wss://nos.lol', 'wss://relay.damus.io', ...options.relay];
+              const published = await publishToRelays(event, relays);
+
+              if (options.json) {
+                console.log(JSON.stringify({ ...result, relays: published }, null, 2));
+              } else {
+                console.log('');
+                console.log(chalk.hex('#D4A574')('  ✅ Registered on agentdex'));
+                console.log(chalk.gray(`  npub: ${npub}`));
+                console.log(chalk.gray(`  Name: ${name}`));
+                console.log(chalk.gray(`  Published to: ${published.join(', ')}`));
+                console.log('');
+                console.log(chalk.gray(`  Run ${chalk.white('agentdex claim <name>')} to get ${chalk.hex('#D4A574')('<name>@agentdex.id')}`));
+              }
+              return;
+            }
+          }
+
+          pollSpinner.fail('Payment timeout (15 min). Invoice expired.');
+          process.exit(1);
+          return;
+        }
+
+        // Free registration — no payment needed
         spinner.text = 'Publishing to Nostr relays...';
         const relays = ['wss://nos.lol', 'wss://relay.damus.io', ...options.relay];
         const published = await publishToRelays(event, relays);
@@ -196,15 +262,25 @@ program
         console.log(chalk.hex('#D4A574')(`  💰 Claim ${name}@agentdex.id for ${claim.amount_sats?.toLocaleString()} sats`));
         console.log('');
 
-        qrcode.generate(claim.invoice, { small: true }, (qr: string) => {
-          console.log(qr);
-        });
-        console.log(chalk.gray(`  bolt11: ${claim.invoice}`));
-        console.log('');
+        const nwcUri = options.nwc || process.env.NWC_URL;
 
-        if (options.nwc) {
-          console.log(chalk.gray('  Auto-paying via NWC...'));
-          console.log(chalk.yellow('  NWC auto-pay not yet implemented. Pay the invoice manually.'));
+        if (nwcUri) {
+          const paySpinner = ora('Paying invoice via NWC...').start();
+          try {
+            await payInvoice(nwcUri, claim.invoice);
+            paySpinner.succeed('Invoice paid!');
+          } catch (payErr) {
+            paySpinner.fail(`NWC payment failed: ${(payErr as Error).message}`);
+            console.log('');
+            console.log(chalk.gray('  Pay manually:'));
+            qrcode.generate(claim.invoice, { small: true }, (qr: string) => { console.log(qr); });
+            console.log(chalk.gray(`  bolt11: ${claim.invoice}`));
+            console.log('');
+          }
+        } else {
+          qrcode.generate(claim.invoice, { small: true }, (qr: string) => { console.log(qr); });
+          console.log(chalk.gray(`  bolt11: ${claim.invoice}`));
+          console.log('');
         }
 
         // Poll for payment

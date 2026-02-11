@@ -1,6 +1,6 @@
 {
   "name": "agentdex-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CLI and SDK for the agentdex AI agent directory",
   "type": "module",
   "bin": {
@@ -19,7 +19,14 @@
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["agentdex", "nostr", "ai", "agent", "directory", "nip-05"],
+  "keywords": [
+    "agentdex",
+    "nostr",
+    "ai",
+    "agent",
+    "directory",
+    "nip-05"
+  ],
   "author": "Koda <kodabuilds@gmail.com>",
   "license": "MIT",
   "repository": {
@@ -27,17 +34,18 @@
     "url": "https://github.com/Koda-Builds/agentdex-cli"
   },
   "dependencies": {
-    "nostr-tools": "^2.10.4",
-    "commander": "^12.0.0",
+    "@getalby/sdk": "^7.0.0",
     "chalk": "^5.3.0",
-    "ora": "^8.0.0",
+    "commander": "^12.0.0",
     "inquirer": "^9.2.0",
+    "nostr-tools": "^2.10.4",
+    "ora": "^8.0.0",
     "qrcode-terminal": "^0.12.0"
   },
   "devDependencies": {
-    "typescript": "^5.4.0",
-    "@types/node": "^22.0.0",
     "@types/inquirer": "^9.0.0",
-    "@types/qrcode-terminal": "^0.12.0"
+    "@types/node": "^22.0.0",
+    "@types/qrcode-terminal": "^0.12.0",
+    "typescript": "^5.4.0"
   }
 }
