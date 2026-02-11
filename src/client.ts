@@ -102,9 +102,13 @@ export class AgentdexClient {
     return res.json();
   }
 
-  async registerStatus(paymentHash: string): Promise<{ paid: boolean; agent?: object }> {
+  async registerStatus(paymentHash: string): Promise<{ paid: boolean; status?: string; agent?: object }> {
     const res = await this.fetch(`/api/v1/agents/register/status?payment_hash=${encodeURIComponent(paymentHash)}`);
-    return res.json();
+    const data = await res.json();
+    // API returns { status: "paid" | "completed" | "pending" | "expired" }
+    // Normalize to { paid: true/false } for CLI consumption
+    data.paid = data.status === 'paid' || data.status === 'completed';
+    return data;
   }
 
   async claim(name: string, event: object): Promise<ClaimResult> {
