@@ -38,7 +38,7 @@ export interface ClaimResult {
   // Free/successful claim
   claimed?: boolean;
   nip05?: string;
-  agent?: { id: string; name: string; nip05Name: string; tier: string };
+  agent?: { id: string; name: string; description?: string; avatarUrl?: string; nip05Name: string; tier: string };
   next_steps?: Record<string, unknown>;
   // Paid claim (402)
   status?: string;

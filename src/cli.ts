@@ -233,6 +233,8 @@ program
           try {
             const kind0 = createKind0Event(sk, {
               name: claim.agent?.name || name,
+              about: claim.agent?.description || undefined,
+              picture: claim.agent?.avatarUrl || undefined,
               nip05: `${name}@agentdex.id`,
             });
             const relays = ['wss://nos.lol', 'wss://relay.damus.io', ...(options.relay || [])];
