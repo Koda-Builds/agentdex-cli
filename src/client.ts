@@ -125,7 +125,11 @@ export class AgentdexClient {
 
   async claimStatus(paymentHash: string): Promise<ClaimStatus> {
     const res = await this.fetch(`/api/v1/agents/claim/status?payment_hash=${encodeURIComponent(paymentHash)}`);
-    return res.json();
+    const data = await res.json();
+    // API returns { status: "paid" | "completed" | "pending" | "expired" }
+    // Normalize to { paid: true/false } for CLI consumption
+    data.paid = data.status === 'paid' || data.status === 'completed';
+    return data;
   }
 
   async search(options: SearchOptions = {}): Promise<object[]> {
