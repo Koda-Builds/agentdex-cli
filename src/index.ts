@@ -15,7 +15,6 @@ export type {
   AgentdexConfig,
   RegisterOptions,
   VerifyResult,
-  NameCheckResult,
   ClaimResult,
   ClaimStatus,
   SearchOptions,

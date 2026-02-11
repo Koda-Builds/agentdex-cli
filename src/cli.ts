@@ -112,6 +112,8 @@ program
           console.log(chalk.gray(`  Published to: ${published.join(', ')}`));
           console.log('');
           console.log(chalk.gray(`  Run ${chalk.white('agentdex claim <name>')} to get ${chalk.hex('#D4A574')('<name>@agentdex.id')}`));
+          console.log('');
+          console.log(chalk.gray('  Next: Claim a NIP-05 name to get verified (first 100 free, then 5000 sats).'));
         }
       } catch (err) {
         spinner.fail(`Registration failed: ${(err as Error).message}`);
@@ -136,39 +138,41 @@ program
   .action(async (name: string, options) => {
     try {
       const sk = resolveKey(options);
-      const pubHex = getPubkeyHex(sk);
       const client = new AgentdexClient({ apiKey: options.apiKey });
 
-      const spinner = ora(`Checking "${name}"...`).start();
+      const spinner = ora(`Claiming ${name}@agentdex.id...`).start();
 
-      // Check availability
-      const check = await client.checkName(name);
-      if (!check.available) {
-        spinner.fail(`"${name}" is taken.`);
-        if (check.suggestions?.length) {
-          console.log(chalk.gray(`  Available: ${check.suggestions.join(', ')}`));
+      // Sign a kind 31337 event for claim authentication
+      const event = createProfileEvent(sk, {
+        name,
+        status: 'active',
+      });
+
+      const claim = await client.claim(name, event);
+
+      // Free/successful claim
+      if (claim.claimed) {
+        spinner.succeed(`${chalk.hex('#D4A574')(`${claim.nip05}`)} is now active!`);
+        if (claim.next_steps) {
+          console.log('');
+          const ns = claim.next_steps as Record<string, { description?: string; relays?: string[] }>;
+          if (ns.publish_kind0) {
+            console.log(chalk.gray(`  Next: ${ns.publish_kind0.description}`));
+            if (ns.publish_kind0.relays) {
+              console.log(chalk.gray(`  Relays: ${ns.publish_kind0.relays.join(', ')}`));
+            }
+          }
         }
-        process.exit(1);
-      }
-
-      spinner.text = `Claiming ${name}@agentdex.id...`;
-
-      const claim = await client.claimName(name, pubHex);
-
-      // Free claim (first 100)
-      if (claim.free) {
-        spinner.succeed(`${chalk.hex('#D4A574')(`${name}@agentdex.id`)} is now active! (free — early adopter)`);
         return;
       }
 
-      // Paid claim
-      spinner.stop();
-      console.log('');
-      console.log(chalk.hex('#D4A574')(`  💰 Claim ${name}@agentdex.id for ${claim.amount?.toLocaleString()} sats`));
-      console.log('');
+      // Payment required (402)
+      if (claim.status === 'awaiting_payment' && claim.invoice) {
+        spinner.stop();
+        console.log('');
+        console.log(chalk.hex('#D4A574')(`  💰 Claim ${name}@agentdex.id for ${claim.amount_sats?.toLocaleString()} sats`));
+        console.log('');
 
-      if (claim.invoice) {
-        // Show QR code
         qrcode.generate(claim.invoice, { small: true }, (qr: string) => {
           console.log(qr);
         });
@@ -177,18 +181,17 @@ program
 
         if (options.nwc) {
           console.log(chalk.gray('  Auto-paying via NWC...'));
-          // TODO: NWC payment integration
           console.log(chalk.yellow('  NWC auto-pay not yet implemented. Pay the invoice manually.'));
         }
 
         // Poll for payment
         const pollSpinner = ora('Waiting for payment...').start();
         const startTime = Date.now();
-        const timeout = 15 * 60 * 1000; // 15 minutes
+        const timeout = 15 * 60 * 1000;
 
         while (Date.now() - startTime < timeout) {
           await new Promise((r) => setTimeout(r, 3000));
-          const status = await client.claimStatus(claim.paymentHash!);
+          const status = await client.claimStatus(claim.payment_hash!);
           if (status.paid) {
             pollSpinner.succeed(`${chalk.hex('#D4A574')(`${name}@agentdex.id`)} is now active!`);
             return;

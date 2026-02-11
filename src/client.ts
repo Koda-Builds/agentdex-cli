@@ -34,18 +34,18 @@ export interface VerifyResult {
   messagingPolicy: string | null;
 }
 
-export interface NameCheckResult {
-  available: boolean;
-  suggestions?: string[];
-}
-
 export interface ClaimResult {
-  invoice?: string;
-  paymentHash?: string;
-  amount?: number;
-  expiresAt?: string;
-  free?: boolean;
+  // Free/successful claim
+  claimed?: boolean;
   nip05?: string;
+  agent?: { id: string; name: string; nip05Name: string; tier: string };
+  next_steps?: Record<string, unknown>;
+  // Paid claim (402)
+  status?: string;
+  invoice?: string;
+  payment_hash?: string;
+  amount_sats?: number;
+  expires_at?: string;
 }
 
 export interface ClaimStatus {
@@ -102,17 +102,12 @@ export class AgentdexClient {
     return res.json();
   }
 
-  async checkName(name: string): Promise<NameCheckResult> {
-    const res = await this.fetch(`/api/v1/names/check?name=${encodeURIComponent(name)}`);
-    return res.json();
-  }
-
-  async claimName(name: string, pubkeyHex: string): Promise<ClaimResult> {
-    const res = await this.fetch('/api/v1/names/claim', {
+  async claim(name: string, event: object): Promise<ClaimResult> {
+    const res = await this.fetch('/api/v1/agents/claim', {
       method: 'POST',
-      body: JSON.stringify({ name, pubkey: pubkeyHex }),
+      body: JSON.stringify({ name, event }),
     });
-    if (!res.ok) {
+    if (!res.ok && res.status !== 402) {
       const err = await res.json();
       throw new Error(err.error || 'Claim failed');
     }
@@ -120,7 +115,7 @@ export class AgentdexClient {
   }
 
   async claimStatus(paymentHash: string): Promise<ClaimStatus> {
-    const res = await this.fetch(`/api/v1/names/claim/status?hash=${encodeURIComponent(paymentHash)}`);
+    const res = await this.fetch(`/api/v1/agents/claim/status?payment_hash=${encodeURIComponent(paymentHash)}`);
     return res.json();
   }
 
