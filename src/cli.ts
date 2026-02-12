@@ -47,7 +47,7 @@ program
   .option('--framework <fw>', 'Framework (e.g., langchain, openclaw)')
   .option('--model <model>', 'Model (e.g., claude-3.5-sonnet)')
   .option('--website <url>', 'Website URL')
-  .option('--lightning <addr>', 'Lightning address')
+  .option('--lightning <addr>', 'Lightning address (saved for kind 0 lud16 during claim)')
   .option('--owner-x <handle>', 'Owner X/Twitter handle (e.g., @username)')
   .option('--nwc <uri>', 'Nostr Wallet Connect URI for auto-pay')
   .option('--api-key <key>', 'Agentdex API key')
@@ -205,6 +205,7 @@ program
   .option('--key-file <path>', 'Path to JSON key file')
   .option('--nwc <uri>', 'Nostr Wallet Connect URI for auto-pay')
   .option('--api-key <key>', 'Agentdex API key')
+  .option('--lightning <addr>', 'Lightning address (lud16) to set in kind 0 profile')
   .option('--skip-kind0', 'Skip publishing kind 0 profile to relays')
   .option('--relay <url>', 'Additional relay', (val: string, acc: string[]) => [...acc, val], [])
   .option('--json', 'Output JSON')
@@ -236,6 +237,7 @@ program
               about: claim.agent?.description || undefined,
               picture: claim.agent?.avatarUrl || undefined,
               nip05: `${name}@agentdex.id`,
+              lud16: options.lightning || undefined,
             });
             const relays = ['wss://nos.lol', 'wss://relay.damus.io', ...(options.relay || [])];
             const published = await publishToRelays(kind0, relays);

@@ -76,7 +76,8 @@ export function createProfileEvent(sk: Uint8Array, profile: AgentProfile) {
   if (profile.model) tags.push(['model', profile.model]);
   if (profile.website) tags.push(['website', profile.website]);
   if (profile.avatar) tags.push(['avatar', profile.avatar]);
-  if (profile.lightning) tags.push(['lightning', profile.lightning]);
+  // Lightning address belongs in kind 0 (lud16), not kind 31337
+  // Use --lightning flag to set lud16 in kind 0 during claim
   if (profile.human) tags.push(['human', profile.human]);
   if (profile.ownerX) tags.push(['owner_x', profile.ownerX]);
   if (profile.status) tags.push(['status', profile.status || 'active']);
@@ -126,7 +127,7 @@ export async function publishToRelays(event: object, relays: string[] = DEFAULT_
  * After claiming a NIP-05 name, publish this to relays so Nostr clients
  * (njump, Damus, Primal) can verify the identity.
  */
-export function createKind0Event(sk: Uint8Array, profile: { name: string; about?: string; nip05?: string; picture?: string }) {
+export function createKind0Event(sk: Uint8Array, profile: { name: string; about?: string; nip05?: string; picture?: string; lud16?: string }) {
   return finalizeEvent({
     kind: 0,
     created_at: Math.floor(Date.now() / 1000),
@@ -136,6 +137,7 @@ export function createKind0Event(sk: Uint8Array, profile: { name: string; about?
       ...(profile.about && { about: profile.about }),
       ...(profile.nip05 && { nip05: profile.nip05 }),
       ...(profile.picture && { picture: profile.picture }),
+      ...(profile.lud16 && { lud16: profile.lud16 }),
     }),
   }, sk);
 }
