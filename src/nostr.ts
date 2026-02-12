@@ -123,6 +123,44 @@ export async function publishToRelays(event: object, relays: string[] = DEFAULT_
 }
 
 /**
+ * Fetch existing kind 0, merge new fields, and republish.
+ * Used to set lud16 (lightning address) during registration.
+ */
+export async function updateKind0(sk: Uint8Array, updates: { lud16?: string }, relays: string[] = DEFAULT_RELAYS): Promise<string[]> {
+  const pool = new SimplePool();
+  const pubkey = getPublicKey(sk);
+
+  try {
+    // Fetch existing kind 0
+    let existing: Record<string, unknown> = {};
+    try {
+      const events = await Promise.race([
+        pool.querySync(relays, { kinds: [0], authors: [pubkey] }),
+        new Promise<any[]>((resolve) => setTimeout(() => resolve([]), 5000)),
+      ]);
+      if (events.length > 0) {
+        existing = JSON.parse(events[0].content);
+      }
+    } catch {}
+
+    // Merge updates
+    if (updates.lud16) existing.lud16 = updates.lud16;
+
+    const event = finalizeEvent({
+      kind: 0,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [],
+      content: JSON.stringify(existing),
+    }, sk);
+
+    const published = await publishToRelays(event, relays);
+    return published;
+  } finally {
+    pool.close(relays);
+  }
+}
+
+/**
  * Build and sign a kind 0 profile metadata event (for NIP-05 verification).
  * After claiming a NIP-05 name, publish this to relays so Nostr clients
  * (njump, Damus, Primal) can verify the identity.

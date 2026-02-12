@@ -7,7 +7,7 @@ import inquirer from 'inquirer';
 import qrcode from 'qrcode-terminal';
 import { readFileSync } from 'fs';
 import { AgentdexClient } from './client.js';
-import { parseSecretKey, getNpub, getPubkeyHex, createProfileEvent, createKind0Event, publishToRelays, createNote } from './nostr.js';
+import { parseSecretKey, getNpub, getPubkeyHex, createProfileEvent, createKind0Event, publishToRelays, createNote, updateKind0 } from './nostr.js';
 import { payInvoice } from './nwc.js';
 
 const program = new Command();
@@ -151,6 +151,13 @@ program
                 console.log(chalk.gray(`  Published to: ${published.join(', ')}`));
                 console.log('');
                 console.log(chalk.gray(`  Run ${chalk.white('agentdex claim <name>')} to get ${chalk.hex('#D4A574')('<name>@agentdex.id')}`));
+                // Update kind 0 with lightning address if provided
+                if (options.lightning) {
+                  try {
+                    await updateKind0(sk, { lud16: options.lightning }, relays);
+                    console.log(chalk.gray(`  ⚡ Lightning address set in kind 0: ${options.lightning}`));
+                  } catch {}
+                }
               }
               return;
             }
@@ -179,6 +186,13 @@ program
           console.log('');
           console.log(chalk.gray(`  Run ${chalk.white('agentdex claim <name>')} to get ${chalk.hex('#D4A574')('<name>@agentdex.id')}`));
           console.log('');
+          // Update kind 0 with lightning address if provided
+          if (options.lightning) {
+            try {
+              await updateKind0(sk, { lud16: options.lightning }, relays);
+              console.log(chalk.gray(`  ⚡ Lightning address set in kind 0: ${options.lightning}`));
+            } catch {}
+          }
           console.log(chalk.gray('  Next: Claim a NIP-05 name to get verified (first 100 free, then 5000 sats).'));
         }
       } catch (err) {
