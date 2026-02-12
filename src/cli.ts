@@ -47,7 +47,7 @@ program
   .option('--framework <fw>', 'Framework (e.g., langchain, openclaw)')
   .option('--model <model>', 'Model (e.g., claude-3.5-sonnet)')
   .option('--website <url>', 'Website URL')
-  .option('--lightning <addr>', 'Lightning address (saved for kind 0 lud16 during claim)')
+  .option('--lightning <addr>', 'Lightning address (sets lud16 in kind 0 profile)')
   .option('--owner-x <handle>', 'Owner X/Twitter handle (e.g., @username)')
   .option('--nwc <uri>', 'Nostr Wallet Connect URI for auto-pay')
   .option('--api-key <key>', 'Agentdex API key')
