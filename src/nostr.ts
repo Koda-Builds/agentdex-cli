@@ -8,6 +8,12 @@ import { SimplePool } from 'nostr-tools/pool';
 
 const DEFAULT_RELAYS = ['wss://nos.lol', 'wss://relay.damus.io'];
 
+export interface PortfolioItem {
+  url: string;
+  name?: string;
+  description?: string;
+}
+
 export interface AgentProfile {
   name: string;
   description?: string;
@@ -23,6 +29,9 @@ export interface AgentProfile {
   messagingPolicy?: string;
   messagingMinTrust?: number;
   messagingFee?: number;
+  portfolio?: PortfolioItem[];
+  skills?: string[];
+  experience?: string[];
 }
 
 /**
@@ -84,6 +93,24 @@ export function createProfileEvent(sk: Uint8Array, profile: AgentProfile) {
   if (profile.messagingPolicy) tags.push(['messaging_policy', profile.messagingPolicy]);
   if (profile.messagingMinTrust) tags.push(['messaging_min_trust', String(profile.messagingMinTrust)]);
   if (profile.messagingFee) tags.push(['messaging_fee', String(profile.messagingFee)]);
+  if (profile.portfolio) {
+    for (const item of profile.portfolio) {
+      const tag = ['portfolio', item.url];
+      if (item.name) tag.push(item.name);
+      if (item.description) tag.push(item.description);
+      tags.push(tag);
+    }
+  }
+  if (profile.skills) {
+    for (const skill of profile.skills) {
+      tags.push(['skill', skill]);
+    }
+  }
+  if (profile.experience) {
+    for (const exp of profile.experience) {
+      tags.push(['experience', exp]);
+    }
+  }
 
   const event = finalizeEvent({
     kind: 31337,

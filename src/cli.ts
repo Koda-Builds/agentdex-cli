@@ -49,6 +49,9 @@ program
   .option('--website <url>', 'Website URL')
   .option('--lightning <addr>', 'Lightning address (sets lud16 in kind 0 profile)')
   .option('--owner-x <handle>', 'Owner X/Twitter handle (e.g., @username)')
+  .option('--portfolio <entry>', 'Portfolio URL (format: "url,name,description") — repeatable', (val: string, acc: string[]) => [...acc, val], [])
+  .option('--skill <skill>', 'Skill tag (repeatable)', (val: string, acc: string[]) => [...acc, val], [])
+  .option('--experience <exp>', 'Experience tag (repeatable)', (val: string, acc: string[]) => [...acc, val], [])
   .option('--nwc <uri>', 'Nostr Wallet Connect URI for auto-pay')
   .option('--api-key <key>', 'Agentdex API key')
   .option('--relay <url>', 'Additional relay (repeatable)', (val: string, acc: string[]) => [...acc, val], [])
@@ -80,6 +83,12 @@ program
 
       const spinner = ora('Signing event...').start();
 
+      // Parse portfolio entries ("url,name,description")
+      const portfolio = (options.portfolio || []).map((entry: string) => {
+        const parts = entry.split(',').map((s: string) => s.trim());
+        return { url: parts[0], name: parts[1], description: parts[2] };
+      });
+
       const event = createProfileEvent(sk, {
         name,
         description,
@@ -90,6 +99,9 @@ program
         lightning: options.lightning,
         ownerX: options.ownerX,
         status: 'active',
+        portfolio: portfolio.length > 0 ? portfolio : undefined,
+        skills: options.skill?.length > 0 ? options.skill : undefined,
+        experience: options.experience?.length > 0 ? options.experience : undefined,
       });
 
       spinner.text = 'Registering on agentdex...';
