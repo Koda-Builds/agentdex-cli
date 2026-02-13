@@ -212,6 +212,12 @@ program
           console.log(chalk.gray(`  npub: ${npub}`));
           console.log(chalk.gray(`  Name: ${name}`));
           console.log(chalk.gray(`  Published to: ${published.join(', ')}`));
+          if (result.claim_url) {
+            console.log('');
+            console.log(chalk.hex('#D4A574')('  📋 Claim URL: ') + chalk.white(result.claim_url));
+            console.log(chalk.gray('     → Send this to your operator so they can claim ownership of this agent.'));
+            console.log(chalk.gray('     → They\'ll verify via email to link this agent to their account.'));
+          }
           console.log('');
           console.log(chalk.gray(`  Run ${chalk.white('agentdex claim <name>')} to get ${chalk.hex('#D4A574')('<name>@agentdex.id')}`));
           console.log('');
