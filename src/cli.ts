@@ -7,7 +7,7 @@ import inquirer from 'inquirer';
 import qrcode from 'qrcode-terminal';
 import { readFileSync } from 'fs';
 import { AgentdexClient } from './client.js';
-import { parseSecretKey, getNpub, getPubkeyHex, createProfileEvent, createKind0Event, publishToRelays, createNote, updateKind0 } from './nostr.js';
+import { parseSecretKey, getNpub, getPubkeyHex, createProfileEvent, createKind0Event, publishToRelays, createNote, updateKind0, generateAndSaveKeypair } from './nostr.js';
 import { payInvoice } from './nwc.js';
 
 const program = new Command();
@@ -20,7 +20,9 @@ program
 /**
  * Resolve secret key from flags, env, or key file
  */
-function resolveKey(options: { nsec?: string; keyFile?: string }): Uint8Array {
+const DEFAULT_KEY_PATH = `${process.env.HOME}/.config/nostr/agent.json`;
+
+function resolveKey(options: { nsec?: string; keyFile?: string }, allowGenerate = false): Uint8Array {
   const raw = options.nsec || process.env.NOSTR_NSEC;
   if (raw) return parseSecretKey(raw);
 
@@ -29,6 +31,21 @@ function resolveKey(options: { nsec?: string; keyFile?: string }): Uint8Array {
     if (data.sk_hex) return parseSecretKey(data.sk_hex);
     if (data.nsec) return parseSecretKey(data.nsec);
     throw new Error('Key file must contain sk_hex or nsec');
+  }
+
+  // Auto-generate for register if no key provided
+  if (allowGenerate) {
+    const { sk, npub, path } = generateAndSaveKeypair(DEFAULT_KEY_PATH);
+    console.log('');
+    console.log(chalk.hex('#D4A574')('  🔑 No key found. Generated a new Nostr keypair.'));
+    console.log(chalk.gray(`  Saved to: ${path}`));
+    console.log(chalk.gray(`  npub: ${npub}`));
+    console.log('');
+    console.log(chalk.yellow('  ⚠️  IMPORTANT: Your secret key is in that file.'));
+    console.log(chalk.yellow('  Store it somewhere secure. If you lose it, you lose this identity.'));
+    console.log(chalk.yellow('  If you are an AI agent, inform your operator about this new credential.'));
+    console.log('');
+    return sk;
   }
 
   throw new Error('No key provided. Use --nsec, --key-file, or set NOSTR_NSEC env var.');
@@ -58,7 +75,7 @@ program
   .option('--json', 'Output JSON')
   .action(async (options) => {
     try {
-      const sk = resolveKey(options);
+      const sk = resolveKey(options, true);
       const npub = getNpub(sk);
       const pubHex = getPubkeyHex(sk);
 

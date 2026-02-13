@@ -2,9 +2,10 @@
  * Nostr utilities — event creation, signing, publishing
  */
 
-import { finalizeEvent, getPublicKey } from 'nostr-tools/pure';
+import { finalizeEvent, getPublicKey, generateSecretKey } from 'nostr-tools/pure';
 import { nip19 } from 'nostr-tools';
 import { SimplePool } from 'nostr-tools/pool';
+import { mkdirSync, writeFileSync } from 'fs';
 
 const DEFAULT_RELAYS = ['wss://nos.lol', 'wss://relay.damus.io'];
 
@@ -32,6 +33,27 @@ export interface AgentProfile {
   portfolio?: PortfolioItem[];
   skills?: string[];
   experience?: string[];
+}
+
+/**
+ * Generate a new Nostr keypair and save to a JSON file.
+ * Returns the secret key as Uint8Array.
+ */
+export function generateAndSaveKeypair(outputPath: string): { sk: Uint8Array; npub: string; path: string } {
+  const sk = generateSecretKey();
+  const pk = getPublicKey(sk);
+  const nsec = nip19.nsecEncode(sk);
+  const npub = nip19.npubEncode(pk);
+  const skHex = Buffer.from(sk).toString('hex');
+
+  const data = JSON.stringify({ nsec, npub, sk_hex: skHex, pk_hex: pk }, null, 2);
+
+  // Ensure directory exists
+  const dir = outputPath.substring(0, outputPath.lastIndexOf('/'));
+  if (dir) mkdirSync(dir, { recursive: true });
+
+  writeFileSync(outputPath, data, { mode: 0o600 });
+  return { sk, npub, path: outputPath };
 }
 
 /**
