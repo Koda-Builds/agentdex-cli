@@ -6,16 +6,22 @@ import ora from 'ora';
 import inquirer from 'inquirer';
 import qrcode from 'qrcode-terminal';
 import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { AgentdexClient } from './client.js';
 import { parseSecretKey, getNpub, getPubkeyHex, createProfileEvent, createKind0Event, publishToRelays, createNote, updateKind0, generateAndSaveKeypair } from './nostr.js';
 import { payInvoice } from './nwc.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
 
 const program = new Command();
 
 program
   .name('agentdex')
   .description('CLI for the agentdex AI agent directory')
-  .version('0.2.0');
+  .version(pkg.version);
 
 /**
  * Resolve secret key from flags, env, or key file
