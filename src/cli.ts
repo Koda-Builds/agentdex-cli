@@ -8,6 +8,7 @@ import qrcode from 'qrcode-terminal';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { nip19 } from 'nostr-tools';
 import { AgentdexClient } from './client.js';
 import { parseSecretKey, getNpub, getPubkeyHex, createProfileEvent, createKind0Event, publishToRelays, createNote, updateKind0, generateAndSaveKeypair } from './nostr.js';
 import { payInvoice } from './nwc.js';
@@ -73,6 +74,7 @@ program
   .option('--avatar <url>', 'Avatar image URL (sets picture in kind 0 profile)')
   .option('--lightning <addr>', 'Lightning address (sets lud16 in kind 0 profile)')
   .option('--owner-x <handle>', 'Owner X/Twitter handle (e.g., @username)')
+  .option('--human <npub-or-hex>', 'Owner/operator Nostr pubkey (npub or hex) — enables bidirectional verification')
   .option('--portfolio <entry>', 'Portfolio URL (format: "url,name,description") — repeatable', (val: string, acc: string[]) => [...acc, val], [])
   .option('--skill <skill>', 'Skill tag (repeatable)', (val: string, acc: string[]) => [...acc, val], [])
   .option('--experience <exp>', 'Experience tag (repeatable)', (val: string, acc: string[]) => [...acc, val], [])
@@ -113,6 +115,24 @@ program
         return { url: parts[0], name: parts[1], description: parts[2] };
       });
 
+      // Resolve owner pubkey hex from --human flag (npub or hex)
+      let humanNpub = options.human;
+      let ownerPubkeyHex: string | undefined;
+      if (humanNpub) {
+        if (humanNpub.startsWith('npub')) {
+          try {
+            const decoded = nip19.decode(humanNpub);
+            ownerPubkeyHex = decoded.data as unknown as string;
+          } catch {
+            console.error(chalk.red('Invalid --human npub'));
+            process.exit(1);
+          }
+        } else {
+          ownerPubkeyHex = humanNpub;
+          humanNpub = nip19.npubEncode(humanNpub);
+        }
+      }
+
       const event = createProfileEvent(sk, {
         name,
         description,
@@ -121,6 +141,7 @@ program
         model: options.model,
         website: options.website,
         lightning: options.lightning,
+        human: humanNpub,
         ownerX: options.ownerX,
         status: 'active',
         portfolio: portfolio.length > 0 ? portfolio : undefined,
@@ -196,6 +217,7 @@ program
                     about: description || undefined,
                     picture: options.avatar || undefined,
                     lud16: options.lightning || undefined,
+                    ownerPubkeyHex,
                   });
                   await publishToRelays(kind0, relays);
                   k0Spinner.succeed('Kind 0 published — visible on all Nostr clients');
@@ -237,7 +259,7 @@ program
           console.log(chalk.gray(`  Run ${chalk.white('agentdex claim <name>')} to get ${chalk.hex('#D4A574')('<name>@agentdex.id')}`));
           console.log('');
           // Publish kind 0 profile (name, about, avatar, website, lud16)
-          // Kind 0 is canonical for basic profile; kind 31337 is agent-specific metadata
+          // Kind 0 is canonical for basic profile; kind 31339 is agent-specific metadata
           const k0Spinner = ora('Publishing kind 0 profile to Nostr relays...').start();
           try {
             const kind0 = createKind0Event(sk, {
@@ -245,6 +267,7 @@ program
               about: description || undefined,
               picture: options.avatar || undefined,
               lud16: options.lightning || undefined,
+              ownerPubkeyHex,
             });
             await publishToRelays(kind0, relays);
             k0Spinner.succeed('Kind 0 published — visible on all Nostr clients');
@@ -290,7 +313,7 @@ program
 
       const spinner = ora(`Claiming ${name}@agentdex.id...`).start();
 
-      // Sign a kind 31337 event for claim authentication
+      // Sign a kind 31339 event for claim authentication
       const event = createProfileEvent(sk, {
         name,
         status: 'active',

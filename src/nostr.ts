@@ -89,14 +89,14 @@ export function getPubkeyHex(sk: Uint8Array): string {
 }
 
 /**
- * Build and sign a kind 31337 agent profile event
+ * Build and sign a kind 31339 agent profile event
  */
 export function createProfileEvent(sk: Uint8Array, profile: AgentProfile) {
   const tags: string[][] = [
     ['d', 'agentdex-profile'],
   ];
 
-  // name is optional in kind 31337 (canonical source is kind 0)
+  // name is optional in kind 31339 (canonical source is kind 0)
   // included for backward compatibility and standalone profiles
   if (profile.name) tags.push(['name', profile.name]);
   if (profile.description) tags.push(['description', profile.description]);
@@ -109,7 +109,7 @@ export function createProfileEvent(sk: Uint8Array, profile: AgentProfile) {
   if (profile.model) tags.push(['model', profile.model]);
   if (profile.website) tags.push(['website', profile.website]);
   if (profile.avatar) tags.push(['avatar', profile.avatar]);
-  // Lightning address belongs in kind 0 (lud16), not kind 31337
+  // Lightning address belongs in kind 0 (lud16), not kind 31339
   // Use --lightning flag to set lud16 in kind 0 during claim
   if (profile.human) tags.push(['human', profile.human]);
   if (profile.ownerX) tags.push(['owner_x', profile.ownerX]);
@@ -137,7 +137,7 @@ export function createProfileEvent(sk: Uint8Array, profile: AgentProfile) {
   }
 
   const event = finalizeEvent({
-    kind: 31337,
+    kind: 31339,
     created_at: Math.floor(Date.now() / 1000),
     tags,
     content: '',
@@ -219,11 +219,15 @@ export async function updateKind0(sk: Uint8Array, updates: { lud16?: string }, r
  * After claiming a NIP-05 name, publish this to relays so Nostr clients
  * (njump, Damus, Primal) can verify the identity.
  */
-export function createKind0Event(sk: Uint8Array, profile: { name: string; about?: string; nip05?: string; picture?: string; lud16?: string }) {
+export function createKind0Event(sk: Uint8Array, profile: { name: string; about?: string; nip05?: string; picture?: string; lud16?: string; ownerPubkeyHex?: string }) {
+  const tags: string[][] = [["bot"]];
+  if (profile.ownerPubkeyHex) {
+    tags.push(["p", profile.ownerPubkeyHex, "", "owner"]);
+  }
   return finalizeEvent({
     kind: 0,
     created_at: Math.floor(Date.now() / 1000),
-    tags: [],
+    tags,
     content: JSON.stringify({
       name: profile.name,
       ...(profile.about && { about: profile.about }),
