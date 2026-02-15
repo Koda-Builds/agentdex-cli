@@ -1,6 +1,6 @@
 {
   "name": "agentdex-cli",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "CLI and SDK for the agentdex AI agent directory",
   "type": "module",
   "bin": {

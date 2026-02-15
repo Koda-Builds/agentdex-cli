@@ -94,9 +94,11 @@ export function getPubkeyHex(sk: Uint8Array): string {
 export function createProfileEvent(sk: Uint8Array, profile: AgentProfile) {
   const tags: string[][] = [
     ['d', 'agentdex-profile'],
-    ['name', profile.name],
   ];
 
+  // name is optional in kind 31337 (canonical source is kind 0)
+  // included for backward compatibility and standalone profiles
+  if (profile.name) tags.push(['name', profile.name]);
   if (profile.description) tags.push(['description', profile.description]);
   if (profile.capabilities) {
     for (const cap of profile.capabilities) {

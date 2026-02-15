@@ -64,6 +64,7 @@ program
   .option('--framework <fw>', 'Framework (e.g., langchain, openclaw)')
   .option('--model <model>', 'Model (e.g., claude-3.5-sonnet)')
   .option('--website <url>', 'Website URL')
+  .option('--avatar <url>', 'Avatar image URL (sets picture in kind 0 profile)')
   .option('--lightning <addr>', 'Lightning address (sets lud16 in kind 0 profile)')
   .option('--owner-x <handle>', 'Owner X/Twitter handle (e.g., @username)')
   .option('--portfolio <entry>', 'Portfolio URL (format: "url,name,description") — repeatable', (val: string, acc: string[]) => [...acc, val], [])
@@ -180,12 +181,20 @@ program
                 console.log(chalk.gray(`  Published to: ${published.join(', ')}`));
                 console.log('');
                 console.log(chalk.gray(`  Run ${chalk.white('agentdex claim <name>')} to get ${chalk.hex('#D4A574')('<name>@agentdex.id')}`));
-                // Update kind 0 with lightning address if provided
-                if (options.lightning) {
-                  try {
-                    await updateKind0(sk, { lud16: options.lightning }, relays);
-                    console.log(chalk.gray(`  ⚡ Lightning address set in kind 0: ${options.lightning}`));
-                  } catch {}
+
+                // Publish kind 0 profile (name, about, avatar, website, lud16)
+                const k0Spinner = ora('Publishing kind 0 profile to Nostr relays...').start();
+                try {
+                  const kind0 = createKind0Event(sk, {
+                    name,
+                    about: description || undefined,
+                    picture: options.avatar || undefined,
+                    lud16: options.lightning || undefined,
+                  });
+                  await publishToRelays(kind0, relays);
+                  k0Spinner.succeed('Kind 0 published — visible on all Nostr clients');
+                } catch {
+                  k0Spinner.warn('Kind 0 publish failed — agent may not appear on standard Nostr clients');
                 }
               }
               return;
@@ -221,13 +230,22 @@ program
           console.log('');
           console.log(chalk.gray(`  Run ${chalk.white('agentdex claim <name>')} to get ${chalk.hex('#D4A574')('<name>@agentdex.id')}`));
           console.log('');
-          // Update kind 0 with lightning address if provided
-          if (options.lightning) {
-            try {
-              await updateKind0(sk, { lud16: options.lightning }, relays);
-              console.log(chalk.gray(`  ⚡ Lightning address set in kind 0: ${options.lightning}`));
-            } catch {}
+          // Publish kind 0 profile (name, about, avatar, website, lud16)
+          // Kind 0 is canonical for basic profile; kind 31337 is agent-specific metadata
+          const k0Spinner = ora('Publishing kind 0 profile to Nostr relays...').start();
+          try {
+            const kind0 = createKind0Event(sk, {
+              name,
+              about: description || undefined,
+              picture: options.avatar || undefined,
+              lud16: options.lightning || undefined,
+            });
+            await publishToRelays(kind0, relays);
+            k0Spinner.succeed('Kind 0 published — visible on all Nostr clients');
+          } catch {
+            k0Spinner.warn('Kind 0 publish failed — agent may not appear on standard Nostr clients');
           }
+
           console.log(chalk.gray('  Next: Claim a NIP-05 name to get verified (first 100 free, then 5000 sats).'));
         }
       } catch (err) {
