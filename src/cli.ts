@@ -75,6 +75,7 @@ program
   .option('--lightning <addr>', 'Lightning address (sets lud16 in kind 0 profile)')
   .option('--owner-x <handle>', 'Owner X/Twitter handle (e.g., @username)')
   .option('--human <npub-or-hex>', 'Owner/operator Nostr pubkey (npub or hex) — enables bidirectional verification')
+  .option('--bot', 'Add ["bot"] tag to kind 0 profile (declares this pubkey as automated)')
   .option('--portfolio <entry>', 'Portfolio URL (format: "url,name,description") — repeatable', (val: string, acc: string[]) => [...acc, val], [])
   .option('--skill <skill>', 'Skill tag (repeatable)', (val: string, acc: string[]) => [...acc, val], [])
   .option('--experience <exp>', 'Experience tag (repeatable)', (val: string, acc: string[]) => [...acc, val], [])
@@ -218,6 +219,7 @@ program
                     picture: options.avatar || undefined,
                     lud16: options.lightning || undefined,
                     ownerPubkeyHex,
+                    bot: !!options.bot,
                   });
                   await publishToRelays(kind0, relays);
                   k0Spinner.succeed('Kind 0 published — visible on all Nostr clients');
@@ -268,6 +270,7 @@ program
               picture: options.avatar || undefined,
               lud16: options.lightning || undefined,
               ownerPubkeyHex,
+              bot: !!options.bot,
             });
             await publishToRelays(kind0, relays);
             k0Spinner.succeed('Kind 0 published — visible on all Nostr clients');

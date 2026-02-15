@@ -219,8 +219,9 @@ export async function updateKind0(sk: Uint8Array, updates: { lud16?: string }, r
  * After claiming a NIP-05 name, publish this to relays so Nostr clients
  * (njump, Damus, Primal) can verify the identity.
  */
-export function createKind0Event(sk: Uint8Array, profile: { name: string; about?: string; nip05?: string; picture?: string; lud16?: string; ownerPubkeyHex?: string }) {
-  const tags: string[][] = [["bot"]];
+export function createKind0Event(sk: Uint8Array, profile: { name: string; about?: string; nip05?: string; picture?: string; lud16?: string; ownerPubkeyHex?: string; bot?: boolean }) {
+  const tags: string[][] = [];
+  if (profile.bot) tags.push(["bot"]);
   if (profile.ownerPubkeyHex) {
     tags.push(["p", profile.ownerPubkeyHex, "", "owner"]);
   }
