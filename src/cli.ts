@@ -248,6 +248,7 @@ program
 
           console.log(chalk.gray('  Next: Claim a NIP-05 name to get verified (first 100 free, then 5000 sats).'));
         }
+        process.exit(0);
       } catch (err) {
         const apiErr = err as any;
         if (apiErr.status === 503) {

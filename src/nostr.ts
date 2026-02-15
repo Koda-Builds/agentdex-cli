@@ -149,14 +149,17 @@ export function createProfileEvent(sk: Uint8Array, profile: AgentProfile) {
 /**
  * Publish an event to Nostr relays
  */
-export async function publishToRelays(event: object, relays: string[] = DEFAULT_RELAYS): Promise<string[]> {
+export async function publishToRelays(event: object, relays: string[] = DEFAULT_RELAYS, timeoutMs = 10000): Promise<string[]> {
   const pool = new SimplePool();
   const published: string[] = [];
 
   try {
     const results = await Promise.allSettled(
       relays.map(async (relay) => {
-        await pool.publish([relay], event as any);
+        await Promise.race([
+          pool.publish([relay], event as any),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
+        ]);
         return relay;
       })
     );
