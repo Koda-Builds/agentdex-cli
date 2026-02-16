@@ -74,7 +74,9 @@ program
   .option('--avatar <url>', 'Avatar image URL (sets picture in kind 0 profile)')
   .option('--lightning <addr>', 'Lightning address (sets lud16 in kind 0 profile)')
   .option('--owner-x <handle>', 'Owner X/Twitter handle (e.g., @username)')
-  .option('--human <npub-or-hex>', 'Owner/operator Nostr pubkey (npub or hex) — enables bidirectional verification')
+  .option('--owner <npub-or-hex>', 'Owner/operator Nostr pubkey (npub or hex) — sets kind 0 p tag for bidirectional verification')
+  .option('--owner-type <type>', 'Owner type: human, agent, org (sets owner_type tag on kind 31339)')
+  .option('--parent <npub-or-hex>', 'Parent/orchestrator agent pubkey (npub or hex)')
   .option('--bot', 'Add ["bot"] tag to kind 0 profile (declares this pubkey as automated)')
   .option('--portfolio <entry>', 'Portfolio URL (format: "url,name,description") — repeatable', (val: string, acc: string[]) => [...acc, val], [])
   .option('--skill <skill>', 'Skill tag (repeatable)', (val: string, acc: string[]) => [...acc, val], [])
@@ -116,21 +118,37 @@ program
         return { url: parts[0], name: parts[1], description: parts[2] };
       });
 
-      // Resolve owner pubkey hex from --human flag (npub or hex)
-      let humanNpub = options.human;
+      // Resolve owner pubkey hex from --owner flag (npub or hex)
+      let ownerNpub = options.owner;
       let ownerPubkeyHex: string | undefined;
-      if (humanNpub) {
-        if (humanNpub.startsWith('npub')) {
+      if (ownerNpub) {
+        if (ownerNpub.startsWith('npub')) {
           try {
-            const decoded = nip19.decode(humanNpub);
+            const decoded = nip19.decode(ownerNpub);
             ownerPubkeyHex = decoded.data as unknown as string;
           } catch {
-            console.error(chalk.red('Invalid --human npub'));
+            console.error(chalk.red('Invalid --owner npub'));
             process.exit(1);
           }
         } else {
-          ownerPubkeyHex = humanNpub;
-          humanNpub = nip19.npubEncode(humanNpub);
+          ownerPubkeyHex = ownerNpub;
+          ownerNpub = nip19.npubEncode(ownerNpub);
+        }
+      }
+
+      // Resolve parent pubkey hex from --parent flag
+      let parentHex: string | undefined;
+      if (options.parent) {
+        if (options.parent.startsWith('npub')) {
+          try {
+            const decoded = nip19.decode(options.parent);
+            parentHex = decoded.data as unknown as string;
+          } catch {
+            console.error(chalk.red('Invalid --parent npub'));
+            process.exit(1);
+          }
+        } else {
+          parentHex = options.parent;
         }
       }
 
@@ -140,10 +158,9 @@ program
         capabilities,
         framework,
         model: options.model,
-        website: options.website,
-        lightning: options.lightning,
-        human: humanNpub,
+        ownerType: options.ownerType,
         ownerX: options.ownerX,
+        parent: parentHex,
         status: 'active',
         portfolio: portfolio.length > 0 ? portfolio : undefined,
         skills: options.skill?.length > 0 ? options.skill : undefined,

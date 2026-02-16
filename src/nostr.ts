@@ -16,17 +16,15 @@ export interface PortfolioItem {
 }
 
 export interface AgentProfile {
-  name: string;
+  name?: string;
   description?: string;
   capabilities?: string[];
   framework?: string;
   model?: string;
-  website?: string;
-  avatar?: string;
-  lightning?: string;
-  human?: string;
+  ownerType?: string;
   ownerX?: string;
   status?: string;
+  parent?: string;
   messagingPolicy?: string;
   messagingMinTrust?: number;
   messagingFee?: number;
@@ -96,9 +94,9 @@ export function createProfileEvent(sk: Uint8Array, profile: AgentProfile) {
     ['d', 'agentdex-profile'],
   ];
 
-  // name is optional in kind 31339 (canonical source is kind 0)
-  // included for backward compatibility and standalone profiles
-  if (profile.name) tags.push(['name', profile.name]);
+  // Kind 31339 is agent-specific metadata ONLY
+  // Basic profile (name, avatar, website, nip05, lud16) lives in kind 0
+  if (profile.name) tags.push(['name', profile.name]); // backward compat — kind 0 is canonical
   if (profile.description) tags.push(['description', profile.description]);
   if (profile.capabilities) {
     for (const cap of profile.capabilities) {
@@ -107,12 +105,9 @@ export function createProfileEvent(sk: Uint8Array, profile: AgentProfile) {
   }
   if (profile.framework) tags.push(['framework', profile.framework]);
   if (profile.model) tags.push(['model', profile.model]);
-  if (profile.website) tags.push(['website', profile.website]);
-  if (profile.avatar) tags.push(['avatar', profile.avatar]);
-  // Lightning address belongs in kind 0 (lud16), not kind 31339
-  // Use --lightning flag to set lud16 in kind 0 during claim
-  if (profile.human) tags.push(['human', profile.human]);
+  if (profile.ownerType) tags.push(['owner_type', profile.ownerType]);
   if (profile.ownerX) tags.push(['owner_x', profile.ownerX]);
+  if (profile.parent) tags.push(['parent', profile.parent]);
   if (profile.status) tags.push(['status', profile.status || 'active']);
   if (profile.messagingPolicy) tags.push(['messaging_policy', profile.messagingPolicy]);
   if (profile.messagingMinTrust) tags.push(['messaging_min_trust', String(profile.messagingMinTrust)]);
