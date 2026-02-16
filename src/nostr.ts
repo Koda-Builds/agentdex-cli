@@ -215,23 +215,82 @@ export async function updateKind0(sk: Uint8Array, updates: { lud16?: string }, r
  * After claiming a NIP-05 name, publish this to relays so Nostr clients
  * (njump, Damus, Primal) can verify the identity.
  */
-export function createKind0Event(sk: Uint8Array, profile: { name: string; about?: string; nip05?: string; picture?: string; lud16?: string; ownerPubkeyHex?: string; bot?: boolean }) {
+/**
+ * Fetch existing kind 0, merge explicit updates, and return signed event.
+ * Safe for existing Nostr users — only overwrites fields explicitly passed.
+ */
+export async function buildKind0Event(sk: Uint8Array, updates: {
+  name?: string;
+  about?: string;
+  nip05?: string;
+  picture?: string;
+  lud16?: string;
+  website?: string;
+  ownerPubkeyHex?: string;
+  bot?: boolean;
+}, relays: string[] = DEFAULT_RELAYS) {
+  const pool = new SimplePool();
+  const pubkey = getPublicKey(sk);
+
+  // Fetch existing kind 0 from relays
+  let existing: Record<string, unknown> = {};
+  let existingTags: string[][] = [];
+  try {
+    const events = await Promise.race([
+      pool.querySync(relays, { kinds: [0], authors: [pubkey] }),
+      new Promise<any[]>((resolve) => setTimeout(() => resolve([]), 5000)),
+    ]);
+    if (events.length > 0) {
+      // Get newest event
+      const newest = events.reduce((a: any, b: any) => a.created_at > b.created_at ? a : b);
+      existing = JSON.parse(newest.content);
+      existingTags = newest.tags || [];
+    }
+  } catch {}
+  pool.close(relays);
+
+  // Merge content fields — only overwrite if explicitly provided (not undefined)
+  if (updates.name !== undefined) existing.name = updates.name;
+  if (updates.about !== undefined) existing.about = updates.about;
+  if (updates.nip05 !== undefined) existing.nip05 = updates.nip05;
+  if (updates.picture !== undefined) existing.picture = updates.picture;
+  if (updates.lud16 !== undefined) existing.lud16 = updates.lud16;
+  if (updates.website !== undefined) existing.website = updates.website;
+
+  // Merge tags
   const tags: string[][] = [];
-  if (profile.bot) tags.push(["bot"]);
-  if (profile.ownerPubkeyHex) {
-    tags.push(["p", profile.ownerPubkeyHex, "", "owner"]);
+
+  // Preserve existing tags that we don't manage (e.g., user's own tags)
+  for (const tag of existingTags) {
+    // Skip tags we manage — we'll re-add them below
+    if (tag[0] === 'p' && tag[3] === 'owner') continue;
+    if (tag[0] === 'bot') continue;
+    tags.push(tag);
   }
+
+  // Add/update owner p tag
+  if (updates.ownerPubkeyHex) {
+    tags.push(['p', updates.ownerPubkeyHex, '', 'owner']);
+  } else {
+    // Preserve existing owner p tag if we're not updating it
+    const existingOwner = existingTags.find(t => t[0] === 'p' && t[3] === 'owner');
+    if (existingOwner) tags.push(existingOwner);
+  }
+
+  // Add bot tag only if explicitly requested
+  if (updates.bot) {
+    tags.push(['bot']);
+  } else {
+    // Preserve existing bot tag if we're not changing it
+    const existingBot = existingTags.find(t => t[0] === 'bot');
+    if (existingBot) tags.push(existingBot);
+  }
+
   return finalizeEvent({
     kind: 0,
     created_at: Math.floor(Date.now() / 1000),
     tags,
-    content: JSON.stringify({
-      name: profile.name,
-      ...(profile.about && { about: profile.about }),
-      ...(profile.nip05 && { nip05: profile.nip05 }),
-      ...(profile.picture && { picture: profile.picture }),
-      ...(profile.lud16 && { lud16: profile.lud16 }),
-    }),
+    content: JSON.stringify(existing),
   }, sk);
 }
 

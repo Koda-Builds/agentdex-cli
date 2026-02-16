@@ -25,7 +25,7 @@ export {
   getNpub,
   getPubkeyHex,
   createProfileEvent,
-  createKind0Event,
+  buildKind0Event,
   publishToRelays,
   createNote,
 } from './nostr.js';

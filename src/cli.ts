@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { nip19 } from 'nostr-tools';
 import { AgentdexClient } from './client.js';
-import { parseSecretKey, getNpub, getPubkeyHex, createProfileEvent, createKind0Event, publishToRelays, createNote, updateKind0, generateAndSaveKeypair } from './nostr.js';
+import { parseSecretKey, getNpub, getPubkeyHex, createProfileEvent, buildKind0Event, publishToRelays, createNote, updateKind0, generateAndSaveKeypair } from './nostr.js';
 import { payInvoice } from './nwc.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -227,17 +227,17 @@ program
                 console.log('');
                 console.log(chalk.gray(`  Run ${chalk.white('agentdex claim <name>')} to get ${chalk.hex('#D4A574')('<name>@agentdex.id')}`));
 
-                // Publish kind 0 profile (name, about, avatar, website, lud16)
+                // Publish kind 0 profile (fetch existing, merge, republish)
                 const k0Spinner = ora('Publishing kind 0 profile to Nostr relays...').start();
                 try {
-                  const kind0 = createKind0Event(sk, {
+                  const kind0 = await buildKind0Event(sk, {
                     name,
                     about: description || undefined,
                     picture: options.avatar || undefined,
                     lud16: options.lightning || undefined,
                     ownerPubkeyHex,
                     bot: !!options.bot,
-                  });
+                  }, relays);
                   await publishToRelays(kind0, relays);
                   k0Spinner.succeed('Kind 0 published — visible on all Nostr clients');
                 } catch {
@@ -277,18 +277,18 @@ program
           console.log('');
           console.log(chalk.gray(`  Run ${chalk.white('agentdex claim <name>')} to get ${chalk.hex('#D4A574')('<name>@agentdex.id')}`));
           console.log('');
-          // Publish kind 0 profile (name, about, avatar, website, lud16)
+          // Publish kind 0 profile (fetch existing, merge, republish)
           // Kind 0 is canonical for basic profile; kind 31339 is agent-specific metadata
           const k0Spinner = ora('Publishing kind 0 profile to Nostr relays...').start();
           try {
-            const kind0 = createKind0Event(sk, {
+            const kind0 = await buildKind0Event(sk, {
               name,
               about: description || undefined,
               picture: options.avatar || undefined,
               lud16: options.lightning || undefined,
               ownerPubkeyHex,
               bot: !!options.bot,
-            });
+            }, relays);
             await publishToRelays(kind0, relays);
             k0Spinner.succeed('Kind 0 published — visible on all Nostr clients');
           } catch {
@@ -349,14 +349,14 @@ program
         if (!options.skipKind0) {
           const k0Spinner = ora('Publishing kind 0 profile to Nostr relays...').start();
           try {
-            const kind0 = createKind0Event(sk, {
+            const relays = ['wss://nos.lol', 'wss://relay.damus.io', ...(options.relay || [])];
+            const kind0 = await buildKind0Event(sk, {
               name: claim.agent?.name || name,
               about: claim.agent?.description || undefined,
               picture: claim.agent?.avatarUrl || undefined,
               nip05: `${name}@agentdex.id`,
               lud16: options.lightning || undefined,
-            });
-            const relays = ['wss://nos.lol', 'wss://relay.damus.io', ...(options.relay || [])];
+            }, relays);
             const published = await publishToRelays(kind0, relays);
             k0Spinner.succeed(`Kind 0 published to ${published.join(', ')}`);
             console.log(chalk.gray('  NIP-05 will appear on njump/Damus/Primal once relays propagate (~30s)'));
@@ -419,8 +419,8 @@ program
             if (!options.skipKind0) {
               const k0Spinner = ora('Publishing kind 0 profile to Nostr relays...').start();
               try {
-                const kind0 = createKind0Event(sk, { name, nip05: `${name}@agentdex.id` });
                 const relays = ['wss://nos.lol', 'wss://relay.damus.io', ...(options.relay || [])];
+                const kind0 = await buildKind0Event(sk, { name, nip05: `${name}@agentdex.id` }, relays);
                 await publishToRelays(kind0, relays);
                 k0Spinner.succeed('Kind 0 published — NIP-05 active on all Nostr clients');
               } catch {
