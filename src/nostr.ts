@@ -96,6 +96,8 @@ export function createProfileEvent(sk: Uint8Array, profile: AgentProfile) {
 
   // Kind 31339 is agent-specific metadata ONLY
   // Basic profile (name, avatar, website, nip05, lud16) lives exclusively in kind 0
+  // name is included for API registration (server needs it) but kind 0 is canonical
+  if (profile.name) tags.push(['name', profile.name]);
   if (profile.description) tags.push(['description', profile.description]);
   if (profile.capabilities) {
     for (const cap of profile.capabilities) {
