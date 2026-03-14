@@ -78,7 +78,7 @@ program
   .option('--owner-type <type>', 'Owner type: human, agent, org (sets owner_type tag on kind 31339)')
   .option('--parent <npub-or-hex>', 'Parent/orchestrator agent pubkey (npub or hex)')
   .option('--bot', 'Add ["bot"] tag to kind 0 profile (declares this pubkey as automated)')
-  .option('--portfolio <entry>', 'Portfolio URL (format: "url,name,description") — repeatable', (val: string, acc: string[]) => [...acc, val], [])
+  .option('--portfolio <entry>', 'Portfolio entry (format: "id,url,label,description") — repeatable', (val: string, acc: string[]) => [...acc, val], [])
   .option('--skill <skill>', 'Skill tag (repeatable)', (val: string, acc: string[]) => [...acc, val], [])
   .option('--experience <exp>', 'Experience tag (repeatable)', (val: string, acc: string[]) => [...acc, val], [])
   .option('--nwc <uri>', 'Nostr Wallet Connect URI for auto-pay')
@@ -112,10 +112,16 @@ program
 
       const spinner = ora('Signing event...').start();
 
-      // Parse portfolio entries ("url,name,description")
+      // Parse portfolio entries ("id,url,label,description")
       const portfolio = (options.portfolio || []).map((entry: string) => {
         const parts = entry.split(',').map((s: string) => s.trim());
-        return { url: parts[0], name: parts[1], description: parts[2] };
+        // Support both: "id,url,label,desc" (new) and "url,label,desc" (old)
+        if (parts.length >= 2 && parts[1]?.startsWith('http')) {
+          return { id: parts[0], url: parts[1], name: parts[2], description: parts[3] };
+        }
+        // Old format fallback
+        const id = (parts[1] || parts[0]).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        return { id, url: parts[0], name: parts[1], description: parts[2] };
       });
 
       // Resolve owner pubkey hex from --owner flag (npub or hex)

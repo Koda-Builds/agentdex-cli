@@ -10,6 +10,7 @@ import { mkdirSync, writeFileSync } from 'fs';
 const DEFAULT_RELAYS = ['wss://nos.lol', 'wss://relay.damus.io'];
 
 export interface PortfolioItem {
+  id: string;
   url: string;
   name?: string;
   description?: string;
@@ -115,7 +116,8 @@ export function createProfileEvent(sk: Uint8Array, profile: AgentProfile) {
   if (profile.messagingFee) tags.push(['messaging_fee', String(profile.messagingFee)]);
   if (profile.portfolio) {
     for (const item of profile.portfolio) {
-      const tag = ['portfolio', item.url];
+      // New format: ["portfolio", id, url, label, description]
+      const tag = ['portfolio', item.id, item.url];
       if (item.name) tag.push(item.name);
       if (item.description) tag.push(item.description);
       tags.push(tag);
